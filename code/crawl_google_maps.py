@@ -35,19 +35,19 @@ for record in records:
 
 print(restaurants)
 
-cursor.execute("DROP TABLE IF EXISTS restaurants.informationscraping;")
+#cursor.execute("DROP TABLE IF EXISTS restaurants.informationscraping;")
 
 cursor.execute("CREATE TABLE IF NOT EXISTS restaurants.informationscraping (id serial PRIMARY KEY, name varchar, adresse varchar, website varchar, phone varchar, note varchar, nbavis varchar, price varchar, type varchar);")
 
-cursor.execute("DROP TABLE IF EXISTS restaurants.avisscraping;")
+#cursor.execute("DROP TABLE IF EXISTS restaurants.avisscraping;")
 
 cursor.execute("CREATE TABLE IF NOT EXISTS restaurants.avisscraping (id serial PRIMARY KEY, id_restaurant serial, name varchar, stats varchar, rate varchar, time varchar, text varchar);")
 
-cursor.execute("DROP TABLE IF EXISTS restaurants.categoriescraping;")
+#cursor.execute("DROP TABLE IF EXISTS restaurants.categoriescraping;")
 
 cursor.execute("CREATE TABLE IF NOT EXISTS restaurants.categoriescraping (id serial PRIMARY KEY, id_restaurant serial, categorie varchar, nbcited serial);")
 
-cursor.execute("DROP TABLE IF EXISTS restaurants.aproposscraping;")
+#cursor.execute("DROP TABLE IF EXISTS restaurants.aproposscraping;")
 
 cursor.execute("CREATE TABLE IF NOT EXISTS restaurants.aproposscraping (id serial PRIMARY KEY, id_restaurant serial, attribut varchar);")
 
@@ -78,85 +78,90 @@ async def multi_page_commits():
         for restaurant in restaurants:
             print(restaurant)
 
-            config2 = CrawlerRunConfig(
-                #wait_for = "js:() => { return document.querySelector('[aria-label=\"" + restaurant.split(" - ")[0] + "\"]') != null; }",
-                wait_for = """js:() => {
-                                setTimeout(() => {
-                                    return true;
-                                }, 1000);
-                            }""",
-                session_id="session",
-                page_timeout=5000,
-                wait_for_images=True
-            )
+            cursor.execute("SELECT name FROM restaurants.informationscraping WHERE name = %s", (restaurant.split(" - ")[0],))
 
-            result2 = await crawler.arun(
-                "https://www.google.com/maps/search/" + restaurant.replace(" ", "+"),
-                config = config2
-                )
-            print("Get presentation")
-
-            soup = BeautifulSoup(result2.html, 'html.parser')
-            check = soup.find(class_=class_check_ok)
-
-            #print(check)
-
-            if check != None:
-                extract_presentation(result2.html, restaurant)
-
-                cursor.execute("select id from restaurants.informationscraping order by id desc limit 1;")
-
-                id = cursor.fetchone()
-
-                print("Restaurant : " + str(id[0]))
-
-                config3 = CrawlerRunConfig(
-                    js_code = """
-                        document.querySelectorAll('[role="tab"]')[1].click();
-                        for (let pas = 0; pas < 2; pas++) {
-                            setTimeout(() => {
-                                document.getElementsByClassName("m6QErb DxyBCb kA9KIf dS8AEf XiKgde ")[0].scrollTop += 20000;
-                            }, pas * 2000);
-                        }
-                        """,
-                    wait_for = """js:() => {
-                                setTimeout(() => {
-                                    return true;
-                                }, 4000);
-                            }""",
-                    session_id="session",
-                    page_timeout=10000,
-                    wait_for_images=True
-                )
-
-                result3 = await crawler.arun(
-                    "https://www.google.com/maps/search/" + restaurant.replace(" ", "+"),
-                    config = config3
-                    )
-                print("Get avis")
-                extract_avis(result3.html, id[0])
-
-                config4 = CrawlerRunConfig(
-                    js_code = """
-                        document.querySelectorAll('[role="tab"]')[2].click();
-                        """,
+            if cursor.fetchone() == None:
+                config2 = CrawlerRunConfig(
                     #wait_for = "js:() => { return document.querySelector('[aria-label=\"" + restaurant.split(" - ")[0] + "\"]') != null; }",
                     wait_for = """js:() => {
-                                setTimeout(() => {
-                                    return true;
-                                }, 1000);
-                            }""",
+                                    setTimeout(() => {
+                                        return true;
+                                    }, 1000);
+                                }""",
                     session_id="session",
                     page_timeout=5000,
                     wait_for_images=True
                 )
 
-                result4 = await crawler.arun(
+                result2 = await crawler.arun(
                     "https://www.google.com/maps/search/" + restaurant.replace(" ", "+"),
-                    config = config4
+                    config = config2
                     )
-                print("Get a propos")
-                extract_apropos(result4.html, id[0])
+                print("Get presentation")
+
+                soup = BeautifulSoup(result2.html, 'html.parser')
+                check = soup.find(class_=class_check_ok)
+
+                #print(check)
+
+                if check != None:
+                    extract_presentation(result2.html, restaurant)
+
+                    cursor.execute("select id from restaurants.informationscraping order by id desc limit 1;")
+
+                    id = cursor.fetchone()
+
+                    print("Restaurant : " + str(id[0]))
+
+                    config3 = CrawlerRunConfig(
+                        js_code = """
+                            document.querySelectorAll('[role="tab"]')[1].click();
+                            for (let pas = 0; pas < 2; pas++) {
+                                setTimeout(() => {
+                                    document.getElementsByClassName("m6QErb DxyBCb kA9KIf dS8AEf XiKgde ")[0].scrollTop += 20000;
+                                }, pas * 2000);
+                            }
+                            """,
+                        wait_for = """js:() => {
+                                    setTimeout(() => {
+                                        return true;
+                                    }, 4000);
+                                }""",
+                        session_id="session",
+                        page_timeout=10000,
+                        wait_for_images=True
+                    )
+
+                    result3 = await crawler.arun(
+                        "https://www.google.com/maps/search/" + restaurant.replace(" ", "+"),
+                        config = config3
+                        )
+                    print("Get avis")
+                    extract_avis(result3.html, id[0])
+
+                    config4 = CrawlerRunConfig(
+                        js_code = """
+                            document.querySelectorAll('[role="tab"]')[2].click();
+                            """,
+                        #wait_for = "js:() => { return document.querySelector('[aria-label=\"" + restaurant.split(" - ")[0] + "\"]') != null; }",
+                        wait_for = """js:() => {
+                                    setTimeout(() => {
+                                        return true;
+                                    }, 1000);
+                                }""",
+                        session_id="session",
+                        page_timeout=5000,
+                        wait_for_images=True
+                    )
+
+                    result4 = await crawler.arun(
+                        "https://www.google.com/maps/search/" + restaurant.replace(" ", "+"),
+                        config = config4
+                        )
+                    print("Get a propos")
+                    extract_apropos(result4.html, id[0])
+            else:
+                print("Restaurant déjà présent")
 
 def extract_apropos(html, id_restaurant):
     soup = BeautifulSoup(html, 'html.parser')
